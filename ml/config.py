@@ -13,7 +13,10 @@ DATA_DIR   = BASE_DIR                          # CSV lives in project root
 MODEL_DIR  = BASE_DIR / "model"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-DATASET_PATH = DATA_DIR / "extra_large_student_attendance_dataset.csv"
+# Full dataset (local) or sample dataset (Streamlit Cloud)
+_FULL_CSV   = DATA_DIR / "extra_large_student_attendance_dataset.csv"
+_SAMPLE_CSV = DATA_DIR / "sample_dataset.csv"
+DATASET_PATH = _FULL_CSV if _FULL_CSV.exists() else _SAMPLE_CSV
 
 # Saved artefacts
 BEST_MODEL_PATH      = MODEL_DIR / "best_model.joblib"
