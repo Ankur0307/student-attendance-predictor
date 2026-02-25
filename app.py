@@ -367,46 +367,154 @@ with tab3:
 # ═══════════════════════════════════════════════════════
 # TAB 4 — SHAP Explanation
 # ═══════════════════════════════════════════════════════
+
+@st.cache_resource(show_spinner=False)
+def _compute_global_shap(n: int = 300):
+    """Compute global SHAP values once and cache. Returns (shap_vals, X_bg_sc, feature_names)."""
+    import shap
+    import joblib
+    from ml.config import ALL_FEATURES, BEST_MODEL_PATH, SCALER_PATH
+
+    model  = joblib.load(BEST_MODEL_PATH)
+    scaler = joblib.load(SCALER_PATH)
+    raw    = _load_raw_data()
+    X_bg   = raw[ALL_FEATURES].fillna(0).sample(n=min(n, len(raw)), random_state=42)
+    X_bg_sc = pd.DataFrame(scaler.transform(X_bg), columns=ALL_FEATURES)
+
+    explainer  = shap.TreeExplainer(model)
+    shap_vals  = explainer.shap_values(X_bg_sc)
+    if isinstance(shap_vals, list):
+        sv = shap_vals[1]
+    else:
+        sv = shap_vals
+    return sv, X_bg_sc, ALL_FEATURES
+
+
+def _render_local_shap(row_dict: dict, pred_label: str, pred_prob: float):
+    """Compute + render a SHAP waterfall for one prediction row."""
+    import shap
+    import joblib
+    from ml.config import ALL_FEATURES, CAT_FEATURES, BEST_MODEL_PATH, SCALER_PATH, LABEL_ENCODERS_PATH
+
+    model    = joblib.load(BEST_MODEL_PATH)
+    scaler   = joblib.load(SCALER_PATH)
+    encoders = joblib.load(LABEL_ENCODERS_PATH)
+
+    df = pd.DataFrame([row_dict])
+
+    # Time features
+    if "class_start_time" in df.columns:
+        t = df["class_start_time"].iloc[0]
+        if isinstance(t, str) and ":" in t:
+            df["class_hour"] = int(t.split(":")[0])
+    if "class_end_time" in df.columns and "class_start_time" in df.columns:
+        s, e = df["class_start_time"].iloc[0], df["class_end_time"].iloc[0]
+        if isinstance(s, str) and isinstance(e, str):
+            s_m = int(s.split(":")[0])*60 + int(s.split(":")[1])
+            e_m = int(e.split(":")[0])*60 + int(e.split(":")[1])
+            df["class_duration_min"] = max(0, e_m - s_m)
+
+    for col in CAT_FEATURES:
+        le  = encoders[col]
+        val = str(df[col].iloc[0])
+        df[col] = le.transform([val])[0] if val in le.classes_ else -1
+
+    for col in ALL_FEATURES:
+        if col not in df.columns:
+            df[col] = 0
+
+    X    = df[ALL_FEATURES].fillna(0)
+    X_sc = pd.DataFrame(scaler.transform(X), columns=ALL_FEATURES)
+
+    explainer = shap.TreeExplainer(model)
+    sv        = explainer.shap_values(X_sc)
+    sv_row    = sv[1][0] if isinstance(sv, list) else sv[0]
+
+    ev = explainer.expected_value
+    if isinstance(ev, (list, np.ndarray)):
+        ev = np.asarray(ev).ravel()
+        base = float(ev[1]) if len(ev) >= 2 else float(ev[0])
+    else:
+        base = float(ev)
+
+    # ── Waterfall bar chart (manual, Agg-safe) ───────────────────────────────
+    order         = np.argsort(np.abs(sv_row))[::-1][:12]
+    feats_ordered = [ALL_FEATURES[i] for i in order]
+    vals_ordered  = sv_row[order]
+    colours       = ["#22c55e" if v > 0 else "#ef4444" for v in vals_ordered]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    fig.patch.set_facecolor("#0f1117")
+    ax.set_facecolor("#1e2130")
+    bars = ax.barh(feats_ordered[::-1], vals_ordered[::-1],
+                   color=colours[::-1], edgecolor="#2e3450", linewidth=0.6)
+    ax.axvline(0, color="white", linewidth=0.8, linestyle="--")
+    ax.bar_label(bars, fmt="%+.3f", padding=4, color="white", fontsize=9)
+    ax.set_xlabel("SHAP Value  (positive = pushes toward Present)", color="#9ca3af")
+    ax.set_title(
+        f"Why was '{pred_label}' predicted?  "
+        f"P(Present) = {pred_prob:.1%}  |  Base rate = {base:.2f}",
+        color="#e2e8f0", fontsize=11, pad=10,
+    )
+    ax.tick_params(colors="#9ca3af", labelsize=9)
+    ax.spines[:].set_color("#2e3450")
+    ax.xaxis.grid(True, color="#2e3450", linestyle="--", alpha=0.4)
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close(fig)
+
+    # ── Text table ───────────────────────────────────────────────────────────
+    with st.expander("📋 Full feature contribution table"):
+        rows = []
+        for i in np.argsort(np.abs(sv_row))[::-1]:
+            rows.append({
+                "Feature": ALL_FEATURES[i],
+                "SHAP Value": f"{sv_row[i]:+.4f}",
+                "Direction": "↑ Present" if sv_row[i] > 0 else "↓ Absent",
+                "Raw Value": f"{X_sc.values[0][i]:.3f}",
+            })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
 with tab4:
     st.subheader("SHAP Feature Importance")
 
-    shap_dir = Path(__file__).parent / "model" / "reports" / "shap"
+    # ── Global ────────────────────────────────────────────────────────────────
+    st.markdown("#### 📊 Global — Which features matter most across all students?")
+    with st.spinner("Computing global SHAP values (cached after first run)..."):
+        sv_global, X_bg_sc, feat_names = _compute_global_shap(300)
 
-    # Global importance
-    global_img = shap_dir / "shap_feature_importance.png"
-    if global_img.exists():
-        st.markdown("#### 📊 Global — Which features matter most (all students)?")
-        st.image(str(global_img), use_container_width=True)
-    else:
-        st.info("Global SHAP chart not found. Run `python main.py --mode explain` to generate it.")
+    mean_abs      = np.abs(sv_global).mean(axis=0)
+    order_g       = np.argsort(mean_abs)
+    feats_ranked  = [feat_names[i] for i in order_g]
+    vals_ranked   = mean_abs[order_g]
+
+    fig_g, ax_g = plt.subplots(figsize=(10, 5))
+    fig_g.patch.set_facecolor("#0f1117")
+    ax_g.set_facecolor("#1e2130")
+    bars_g = ax_g.barh(feats_ranked, vals_ranked,
+                       color="#4C72B0", edgecolor="#2e3450", linewidth=0.5)
+    ax_g.bar_label(bars_g, fmt="%.4f", padding=4, color="white", fontsize=9)
+    ax_g.set_xlabel("Mean |SHAP Value|", color="#9ca3af")
+    ax_g.set_title("Global SHAP Feature Importance — GradientBoosting", color="#e2e8f0", pad=10)
+    ax_g.tick_params(colors="#9ca3af", labelsize=9)
+    ax_g.spines[:].set_color("#2e3450")
+    ax_g.xaxis.grid(True, color="#2e3450", linestyle="--", alpha=0.4)
+    plt.tight_layout()
+    st.pyplot(fig_g)
+    plt.close(fig_g)
 
     st.markdown("---")
 
-    # Local waterfall for the last prediction
-    st.markdown("#### 🔍 Local — Why was THIS prediction made?")
+    # ── Local ─────────────────────────────────────────────────────────────────
+    st.markdown("#### � Local — Why was THIS prediction made?")
     if "last_row_dict" in st.session_state:
-        with st.spinner("Computing SHAP values..."):
-            from ml.explain import local_explanation
-            import io, contextlib
-
-            row_dict = st.session_state["last_row_dict"]
-            label    = st.session_state["last_pred_label"]
-            prob     = st.session_state["last_pred_prob"]
-            safe_label = f"{student_id}_{row_dict.get('subject_code','sub')}_live"
-
-            # Generate waterfall
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                local_explanation(row_dict, label=safe_label)
-
-            waterfall_img = shap_dir / f"shap_waterfall_{safe_label}.png"
-            if waterfall_img.exists():
-                st.image(str(waterfall_img), use_container_width=True)
-
-            # Print console output (ranked features)
-            console_out = buf.getvalue()
-            if console_out.strip():
-                with st.expander("📋 Feature contribution details"):
-                    st.code(console_out, language="text")
+        with st.spinner("Computing local SHAP explanation..."):
+            _render_local_shap(
+                st.session_state["last_row_dict"],
+                st.session_state["last_pred_label"],
+                st.session_state["last_pred_prob"],
+            )
     else:
-        st.info("👆 Go to the **Predict Next Class** tab, click **🔮 Predict**, then come back here to see the explanation.")
+        st.info("👆 Go to the **Predict Next Class** tab, click **🔮 Predict**, then come back here.")
+
