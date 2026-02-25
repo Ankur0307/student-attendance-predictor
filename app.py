@@ -60,12 +60,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ── lazy imports (keep startup fast) ─────────────────────────────────────────
-@st.cache_resource(show_spinner=False)
+# ── data loader: Supabase with CSV fallback ──────────────────────────────────
+@st.cache_data(ttl=300, show_spinner=False)
 def _load_raw_data():
-    from ml.config import DATASET_PATH
-    df = pd.read_csv(DATASET_PATH, parse_dates=["date"])
-    df["status"] = pd.to_numeric(df["status"], errors="coerce").fillna(0).astype(int)
+    from ml.supabase_client import load_attendance_from_supabase
+    df, source = load_attendance_from_supabase()
+    st.session_state["data_source"] = source
     return df
 
 
@@ -93,7 +93,11 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption("Model: GradientBoosting  |  F1 = 0.7810")
-    st.caption("Dataset: 107,000 records")
+    src = st.session_state.get("data_source", "csv")
+    if src == "supabase":
+        st.caption("📡 Data: Live from Supabase")
+    else:
+        st.caption("💾 Data: Local CSV (fallback)")
 
 
 # ── header ────────────────────────────────────────────────────────────────────

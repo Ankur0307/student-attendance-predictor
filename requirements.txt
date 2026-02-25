@@ -8,3 +8,5 @@ streamlit>=1.35
 xgboost>=2.0
 shap>=0.44
 imbalanced-learn>=0.12
+supabase>=2.0
+python-dotenv>=1.0

@@ -12,6 +12,36 @@ __pycache__/
 # ── Full dataset (too large for GitHub — use sample_dataset.csv for cloud) ────
 extra_large_student_attendance_dataset.csv
 
+# ── Secrets — NEVER commit these ──────────────────────────────────────────────
+.streamlit/secrets.toml
+.env
+*.env
+
+# ── IDE / OS ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# ── Jupyter ────────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Logs & temp scripts ────────────────────────────────────────────────────────
+*.log
+_check_supabase.py
+
+# NOTE: model/*.joblib and sample_dataset.csv are intentionally tracked
+#       so Streamlit Cloud can load the pre-trained model without retraining.
+
+# ── Python cache ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# ── Full dataset (too large for GitHub — use sample_dataset.csv for cloud) ────
+extra_large_student_attendance_dataset.csv
+
 # ── IDE / OS ───────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
