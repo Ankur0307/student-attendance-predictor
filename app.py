@@ -187,11 +187,11 @@ with tab1:
     ax.spines[:].set_color("#2e3450")
     ax.yaxis.grid(True, color="#2e3450", linestyle="--", alpha=0.5, zorder=0)
     legend_patches = [
-        mpatches.Patch(color="#22c55e", label="✅ Safe"),
-        mpatches.Patch(color="#f59e0b", label="💛 Caution"),
-        mpatches.Patch(color="#ef4444", label="🔴 At Risk"),
-        mpatches.Patch(color="#dc2626", label="❌ Detained"),
-        mpatches.Patch(color="#7c9ef5", label="75% Threshold", linestyle="--"),
+        mpatches.Patch(color="#22c55e", label="Safe"),
+        mpatches.Patch(color="#f59e0b", label="Caution"),
+        mpatches.Patch(color="#ef4444", label="At Risk"),
+        mpatches.Patch(color="#dc2626", label="Detained"),
+        mpatches.Patch(color="#7c9ef5", label="75% Threshold"),
     ]
     ax.legend(handles=legend_patches, facecolor="#1e2130", edgecolor="#2e3450",
               labelcolor="white", fontsize=9)
@@ -238,8 +238,8 @@ with tab2:
 
     styled = (
         display_df.style
-        .applymap(_colour_status, subset=["Status"])
-        .applymap(_colour_pct,    subset=["Current %"])
+        .map(_colour_status, subset=["Status"])
+        .map(_colour_pct,    subset=["Current %"])
         .set_properties(**{"background-color": "#1e2130", "color": "#e2e8f0",
                            "border": "1px solid #2e3450"})
         .set_table_styles([{"selector": "th",
@@ -374,11 +374,12 @@ def _compute_global_shap(n: int = 300):
     import shap
     import joblib
     from ml.config import ALL_FEATURES, BEST_MODEL_PATH, SCALER_PATH
+    from ml.feature_engineering import load_and_engineer
 
     model  = joblib.load(BEST_MODEL_PATH)
     scaler = joblib.load(SCALER_PATH)
-    raw    = _load_raw_data()
-    X_bg   = raw[ALL_FEATURES].fillna(0).sample(n=min(n, len(raw)), random_state=42)
+    eng_df, _ = load_and_engineer()          # get the fully-engineered dataframe
+    X_bg   = eng_df[ALL_FEATURES].fillna(0).sample(n=min(n, len(eng_df)), random_state=42)
     X_bg_sc = pd.DataFrame(scaler.transform(X_bg), columns=ALL_FEATURES)
 
     explainer  = shap.TreeExplainer(model)
