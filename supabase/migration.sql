@@ -9,16 +9,20 @@ DROP TABLE IF EXISTS attendance CASCADE;
 CREATE TABLE attendance (
     id                      BIGSERIAL PRIMARY KEY,
     student_id              TEXT NOT NULL,
+    student_name            TEXT,
     date                    DATE,
     subject_code            TEXT,
     subject_name            TEXT,
     faculty_id              TEXT,
     class_start_time        TEXT,
     class_end_time          TEXT,
+    time_in                 TEXT,
+    time_out                TEXT,
     semester                TEXT,
     status                  INTEGER DEFAULT 0,   -- 1 = Present, 0 = Absent
     is_exam_week            INTEGER DEFAULT 0,
     late_entry              INTEGER DEFAULT 0,
+    remarks                 TEXT,
     created_at              TIMESTAMPTZ DEFAULT NOW()
 );
 
