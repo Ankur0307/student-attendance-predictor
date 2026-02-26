@@ -119,11 +119,12 @@ if gap_df.empty:
     st.stop()
 
 # ── tabs ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Attendance Overview",
     "⚠️ Gap Report",
     "🔮 Predict Next Class",
     "🧠 SHAP Explanation",
+    "📝 Mark Attendance",
 ])
 
 
@@ -523,3 +524,105 @@ with tab4:
     else:
         st.info("👆 Go to the **Predict Next Class** tab, click **🔮 Predict**, then come back here.")
 
+
+# ═══════════════════════════════════════════════════════
+# TAB 5 — Mark Attendance (Teacher Form)
+# ═══════════════════════════════════════════════════════
+with tab5:
+    st.markdown("### 📝 Mark Attendance")
+    st.markdown("Record a new attendance entry directly to the live database.")
+    st.markdown("---")
+
+    # ── helper: get unique values from loaded data ─────────────────────────────
+    raw_df = _load_raw_data()
+    student_ids_all = sorted(raw_df["student_id"].dropna().unique().tolist())
+    subjects_all    = sorted(raw_df["subject_code"].dropna().unique().tolist())
+    semesters_all   = sorted(raw_df["semester"].astype(str).dropna().unique().tolist())
+    faculty_ids_all = sorted(raw_df["faculty_id"].dropna().unique().tolist())
+
+    # subject_code -> subject_name lookup
+    subj_lookup = (
+        raw_df[["subject_code", "subject_name"]]
+        .drop_duplicates()
+        .set_index("subject_code")["subject_name"]
+        .to_dict()
+    )
+
+    with st.form("mark_attendance_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            f_student = st.selectbox("Student ID *", student_ids_all)
+            f_subject = st.selectbox("Subject *", subjects_all,
+                                     format_func=lambda c: f"{c} — {subj_lookup.get(c, '')}")
+            f_faculty  = st.selectbox("Faculty ID *", faculty_ids_all)
+            f_semester = st.selectbox("Semester", semesters_all)
+            f_date     = st.date_input("Date *", value=pd.Timestamp.today())
+
+        with col2:
+            f_start    = st.time_input("Class Start Time", value=pd.Timestamp("09:00").time())
+            f_end      = st.time_input("Class End Time",   value=pd.Timestamp("10:00").time())
+            f_time_in  = st.time_input("Student Time In",  value=pd.Timestamp("09:00").time())
+            f_time_out = st.time_input("Student Time Out", value=pd.Timestamp("10:00").time())
+            f_status   = st.radio("Status *", ["Present", "Absent"],
+                                  horizontal=True, index=0)
+
+        col3, col4 = st.columns(2)
+        with col3:
+            f_late_entry  = st.checkbox("Late Entry")
+        with col4:
+            f_exam_week   = st.checkbox("Exam Week")
+
+        f_remarks = st.text_input("Remarks", placeholder="e.g. On time, Medical leave...")
+
+        submitted = st.form_submit_button("✅ Submit Record", use_container_width=True,
+                                          type="primary")
+
+    if submitted:
+        # ── Build record ────────────────────────────────────────────────────────
+        subj_name = subj_lookup.get(f_subject, f_subject)
+        record = {
+            "student_id":       f_student,
+            "student_name":     raw_df[raw_df["student_id"] == f_student]["student_name"].iloc[0]
+                                if "student_name" in raw_df.columns else f_student,
+            "date":             str(f_date),
+            "subject_code":     f_subject,
+            "subject_name":     subj_name,
+            "faculty_id":       f_faculty,
+            "semester":         f_semester,
+            "class_start_time": f_start.strftime("%H:%M"),
+            "class_end_time":   f_end.strftime("%H:%M"),
+            "time_in":          f_time_in.strftime("%H:%M"),
+            "time_out":         f_time_out.strftime("%H:%M"),
+            "status":           1 if f_status == "Present" else 0,
+            "late_entry":       int(f_late_entry),
+            "is_exam_week":     int(f_exam_week),
+            "remarks":          f_remarks or None,
+        }
+
+        # ── Insert to Supabase ───────────────────────────────────────────────────
+        try:
+            from supabase import create_client as _sb_client
+            _url = st.secrets.get("SUPABASE_URL", "")
+            _key = st.secrets.get("SUPABASE_KEY", "")
+            if not _url or not _key:
+                st.error("⚠️ Supabase credentials not found. Add SUPABASE_URL and SUPABASE_KEY to Streamlit secrets.")
+            else:
+                sb = _sb_client(_url, _key)
+                sb.table("attendance").insert(record).execute()
+
+                # Clear cache so all tabs refresh with new data
+                _load_raw_data.clear()
+
+                st.success(
+                    f"✅ **Record saved!** — {f_student} | {f_subject} | {f_date} | **{f_status}**"
+                )
+                st.balloons()
+
+                st.markdown("**Summary of submitted record:**")
+                st.json(record)
+        except Exception as e:
+            st.error(f"❌ Insert failed: {e}")
+            st.info("💡 Make sure you ran the INSERT policy SQL in Supabase:  \n"
+                    "```sql\nCREATE POLICY \"Allow insert on attendance\" ON attendance\n"
+                    "    FOR INSERT WITH CHECK (true);\n```")
