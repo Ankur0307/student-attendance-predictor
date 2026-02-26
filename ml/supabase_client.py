@@ -15,11 +15,11 @@ import streamlit as st
 # ── Credentials from Streamlit secrets or environment ────────────────────────
 
 def _get_credentials() -> tuple[str, str]:
-    """Return (url, key) from Streamlit secrets or env vars.
-    Handles both top-level keys and [supabase] section in secrets.toml.
+    """Return (url, key) — tries Streamlit secrets, env vars, then hardcoded defaults.
+    The anon key is intentionally public-safe (protected by Supabase RLS).
     """
+    # 1. Try top-level secrets (recommended Streamlit Cloud format)
     try:
-        # Try top-level first (recommended format)
         url = st.secrets["SUPABASE_URL"]
         key = st.secrets["SUPABASE_KEY"]
         if url and key:
@@ -27,8 +27,8 @@ def _get_credentials() -> tuple[str, str]:
     except Exception:
         pass
 
+    # 2. Try nested [supabase] section
     try:
-        # Try nested under [supabase] section
         url = st.secrets["supabase"]["SUPABASE_URL"]
         key = st.secrets["supabase"]["SUPABASE_KEY"]
         if url and key:
@@ -36,10 +36,17 @@ def _get_credentials() -> tuple[str, str]:
     except Exception:
         pass
 
-    # Fallback to environment variables
+    # 3. Try environment variables
     url = os.getenv("SUPABASE_URL", "")
     key = os.getenv("SUPABASE_KEY", "")
-    return url, key
+    if url and key:
+        return url, key
+
+    # 4. Hardcoded defaults (anon key is public-safe, protected by RLS)
+    return (
+        "https://tosolythxignxqheborz.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvc29seXRoeGlnbnhxaGVib3J6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MTU5MzYsImV4cCI6MjA4NTE5MTkzNn0.8zoxEXG0umbGe68TokWWABJGqpumxZGvWXxD4Wj6t3w",
+    )
 
 
 # ── Main loader ───────────────────────────────────────────────────────────────
