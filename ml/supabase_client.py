@@ -15,13 +15,28 @@ import streamlit as st
 # ── Credentials from Streamlit secrets or environment ────────────────────────
 
 def _get_credentials() -> tuple[str, str]:
-    """Return (url, key) from Streamlit secrets or env vars."""
+    """Return (url, key) from Streamlit secrets or env vars.
+    Handles both top-level keys and [supabase] section in secrets.toml.
+    """
     try:
+        # Try top-level first (recommended format)
         url = st.secrets["SUPABASE_URL"]
         key = st.secrets["SUPABASE_KEY"]
-        return url, key
+        if url and key:
+            return url, key
     except Exception:
         pass
+
+    try:
+        # Try nested under [supabase] section
+        url = st.secrets["supabase"]["SUPABASE_URL"]
+        key = st.secrets["supabase"]["SUPABASE_KEY"]
+        if url and key:
+            return url, key
+    except Exception:
+        pass
+
+    # Fallback to environment variables
     url = os.getenv("SUPABASE_URL", "")
     key = os.getenv("SUPABASE_KEY", "")
     return url, key
