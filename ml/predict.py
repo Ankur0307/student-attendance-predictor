@@ -12,6 +12,7 @@ Two public utilities:
 """
 
 import logging
+import math
 from pathlib import Path
 
 import joblib
@@ -174,11 +175,11 @@ def attendance_gap_report(
         # where y = total_remaining – x (classes skipped)
         # Simplification: we need attended + x >= min_pct/100 * (held + total_classes_remaining)
         required_present = (min_pct / 100) * total_at_end
-        classes_needed   = max(0, int(required_present - attended) + 1)  # ceiling
+        # Use proper ceiling: how many more present classes are needed?
+        classes_needed   = max(0, math.ceil(required_present - attended))
 
         if total_classes_remaining == 0:
             # No future classes — can't improve
-            classes_needed = max(0, int(required_present - attended) + 1)
             feasible = classes_needed == 0
         else:
             feasible = classes_needed <= total_classes_remaining
