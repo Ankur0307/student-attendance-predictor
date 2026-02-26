@@ -1,0 +1,6 @@
+Model,Accuracy,Precision,Recall,F1_Score,CV_F1_Train,Overfit_Gap
+GradientBoosting,0.8176,0.7651,0.8176,0.781,0.8188,0.0378
+XGBoost,0.8373,0.7011,0.8373,0.7632,0.7783,0.0151
+DecisionTree,0.5879,0.7665,0.5879,0.6418,0.6477,0.006
+RandomForest,0.5647,0.7743,0.5647,0.6214,0.7199,0.0986
+LogisticRegression,0.3725,0.8699,0.3725,0.3913,0.5641,0.1729
