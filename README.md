@@ -34,14 +34,14 @@ It helps institutions:
 
 ## 🧠 Problem Statement
 
-Low attendance directly impacts student performance and outcomes.
+Low attendance directly impacts student performance.
 
 Traditional systems:
 
 * Only show past attendance ❌
 * Do not provide predictive insights ❌
 
-👉 This project solves that by enabling **predictive + prescriptive analytics**
+👉 This system introduces **predictive + prescriptive analytics**
 
 ---
 
@@ -49,10 +49,10 @@ Traditional systems:
 
 The system:
 
-* Collects and processes attendance data
-* Applies **ML models to predict future attendance**
-* Generates **gap reports & risk levels**
-* Visualizes insights via a **live Streamlit dashboard**
+* Processes historical attendance data
+* Applies ML models to predict attendance
+* Generates gap reports & risk levels
+* Visualizes insights via an interactive dashboard
 
 ---
 
@@ -64,10 +64,10 @@ The system:
 | ⚖️ **SMOTE Balancing**        | Handles class imbalance (84% Present / 16% Absent)                            |
 | 🔧 **14 Engineered Features** | Includes lag features with no data leakage                                    |
 | 🧠 **SHAP Explainability**    | Global + local model interpretation                                           |
-| 📊 **Attendance Gap Report**  | Risk classification: Safe / Caution / At Risk / Detained                      |
-| 🔮 **Next Class Prediction**  | Predicts attendance with probability score                                    |
+| 📊 **Attendance Gap Report**  | Safe / Caution / At Risk / Detained classification                            |
+| 🔮 **Next Class Prediction**  | Predicts attendance with probability                                          |
 | 📡 **Live Backend**           | Supabase real-time integration                                                |
-| 📝 **Teacher Input System**   | Direct attendance entry via dashboard                                         |
+| 📝 **Teacher Input**          | Direct attendance marking via dashboard                                       |
 
 ---
 
@@ -91,13 +91,27 @@ Student Data → Feature Engineering → ML Models → Predictions → Dashboard
 | RandomForest           | 0.6214     | 0.721    | +0.099      |
 | LogisticRegression     | 0.3913     | 0.394    | baseline    |
 
-👉 **Gradient Boosting selected as final model (best generalization)**
+👉 **Gradient Boosting selected as final model**
 
 ---
 
 ## 📸 Dashboard Preview
 
-(Add your screenshots here — already good 👍)
+### 📊 Attendance Overview
+
+![Attendance Overview](docs/Screenshot%202026-01-29%20085443.png)
+
+### ⚠️ Gap Report & Feature Importance
+
+![SHAP Feature Importance](model/reports/shap/shap_feature_importance.png)
+
+### 📈 Model Comparison
+
+![Model Comparison](model/reports/model_comparison.png)
+
+### 🧠 SHAP Summary
+
+![SHAP Summary](model/reports/shap/shap_summary.png)
 
 ---
 
@@ -115,11 +129,12 @@ Data Collection → Preprocessing → Feature Engineering → Model Training →
 student-attendance-predictive-system/
 ├── app.py
 ├── main.py
+├── requirements.txt
 ├── ml/
 ├── model/
 ├── scripts/
 ├── supabase/
-└── requirements.txt
+└── .streamlit/
 ```
 
 ---
@@ -165,19 +180,19 @@ python main.py --mode explain
 
 ## 💼 Real-World Impact
 
-This system can be used by:
+This system can help:
 
-* 🎓 Schools & colleges to track attendance trends
-* ⚠️ Identify students at risk before it’s too late
-* 📈 Improve overall academic performance
+* 🎓 Institutions monitor attendance trends
+* ⚠️ Identify at-risk students early
+* 📈 Improve academic performance using data
 
 ---
 
 ## 🌟 Why This Project Stands Out
 
 * End-to-end ML system (not just a notebook)
-* Real-time dashboard + backend integration
-* Explainable AI using SHAP
+* Real-time dashboard + backend
+* Explainable AI (SHAP integration)
 * Production-ready architecture
 
 ---
@@ -185,5 +200,6 @@ This system can be used by:
 <div align="center">
 
 ⭐ If you like this project, give it a star!
+Made with ❤️ by Ankur Gupta
 
 </div>
